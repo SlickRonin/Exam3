@@ -5,12 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Modal,
+  Alert
 } from 'react-native';
-import Add from '../add';// Import the Add component
+import Add from '../add'; // Import the Add component
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MedicationCard from '../components/MedicationCard';
+import { Medication, sampleMedications, toggleMedicationStatus, getMedicationsForDay } from '../Data/medData';
 
+/**
+ * Generates the current week's days and dates for the calendar strip
+ * Returns an object with two arrays: weekDays (['S', 'M', 'T', etc.]) and weekDates (['1', '2', '3', etc.])
+ */
 const getCurrentWeek = () => {
   const today = new Date();
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -30,65 +36,49 @@ const getCurrentWeek = () => {
   return { weekDays, weekDates };
 };
 
-const medications = [
-  {
-    id: 1,
-    name: 'Vitamin C',
-    dose: '2 Capsule',
-    time: '6:30 am',
-    day: 0, // Sunday
-  },
-  {
-    id: 2,
-    name: 'Valtum plus 25',
-    dose: '2 Pills',
-    time: '8:00 am',
-    day: 1, // Monday
-  },
-  {
-    id: 3,
-    name: 'Centrum',
-    dose: '1 Capsule',
-    time: '10:30 pm',
-    day: 2, // Tuesday
-  },
-  {
-    id: 4,
-    name: 'Coldrain All in 1',
-    dose: '1 Capsule',
-    time: '12:30 pm',
-    day: 3, // Wednesday
-  },
-  {
-    id: 5,
-    name: 'Neuherbs T',
-    dose: '2 Capsule',
-    time: '1:00 pm',
-    day: 4, // Thursday
-  },
-];
-
 export default function HomeScreen() {
+  // Get the current week's days and dates for the calendar strip
   const { weekDays, weekDates } = getCurrentWeek();
+  
+  // State for tracking which date is selected in the calendar strip
   const [selectedDateIndex, setSelectedDateIndex] = useState(new Date().getDay()); // Default to today
-  const [isModalVisible, setModalVisible] = useState(false); // State for modal visibility
-  const currentDayIndex = new Date().getDay(); // Get the current day index
+  
+  // State for managing medications data
+  const [medications, setMedications] = useState(sampleMedications);
+  
+  // State for controlling the Add Medication modal visibility
+  const [isModalVisible, setModalVisible] = useState(false);
+  
+  // Get the current day index for highlighting today in the calendar
+  const currentDayIndex = new Date().getDay();
 
-  // Filter medications for the selected day
-  const filteredMedications = medications.filter(
-    (med) => med.day === selectedDateIndex
-  );
+  /**
+   * Handles marking a medication as taken
+   * @param id - The ID of the medication to mark as taken
+   */
+  const handleToggleMedication = (id: number) => {
+    setMedications(prev => toggleMedicationStatus(prev, id));
+  };
+
+  /**
+   * Filters medications for the selected day and merges with the taken status
+   * from our medications state to ensure UI reflects current status
+   */
+  const filteredMedications = getMedicationsForDay(selectedDateIndex).map(med => ({
+    ...med,
+    isTaken: medications.find(m => m.id === med.id)?.isTaken || false
+  }));
 
   return (
     <View style={styles.container}>
-      {/* Calendar Strip */}
+      {/* Calendar Strip - Shows days of week with dates */}
       <View style={styles.dateRow}>
         {weekDays.map((day, index) => (
           <TouchableOpacity
             key={index}
             style={[
               styles.dateItem,
-              selectedDateIndex === index && styles.selectedDate,
+              selectedDateIndex === index && styles.selectedDate, // Highlight selected date
               currentDayIndex === index && styles.currentDay, // Highlight current day
             ]}
             onPress={() => setSelectedDateIndex(index)}
@@ -97,7 +87,7 @@ export default function HomeScreen() {
             <Text
               style={[
                 styles.dateText,
-                selectedDateIndex === index && styles.selectedDateText,
+                selectedDateIndex === index && styles.selectedDateText, // White text for selected date
               ]}
             >
               {weekDates[index]}
@@ -106,20 +96,18 @@ export default function HomeScreen() {
         ))}
       </View>
 
-      {/* Medications List */}
+      {/* Medications List - Shows cards for each medication on selected day */}
       <ScrollView style={styles.medList}>
         {filteredMedications.map((med) => (
-          <View key={med.id} style={styles.medItem}>
-            <View style={styles.medInfo}>
-              <Text style={styles.medName}>{med.name}</Text>
-              <Text style={styles.medDose}>{med.dose}</Text>
-            </View>
-            <Text style={styles.medTime}>{med.time}</Text>
-          </View>
+          <MedicationCard
+            key={med.id}
+            medication={med}
+            onToggleMedication={handleToggleMedication}
+          />
         ))}
       </ScrollView>
 
-      {/* Add Medicine Button */}
+      {/* Add Medicine Button - Opens the Add Medication modal */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => setModalVisible(true)}
@@ -127,7 +115,7 @@ export default function HomeScreen() {
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
-      {/* Add Medicine Modal */}
+      {/* Add Medicine Modal - Rendered when isModalVisible is true */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
@@ -140,6 +128,7 @@ export default function HomeScreen() {
   );
 }
 
+// Styles for the component - Maintained original styling with comments
 const styles = StyleSheet.create({
   container: {
     flex: 1,
