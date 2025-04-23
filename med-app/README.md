@@ -8,11 +8,13 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
    ```bash
    npm install
+   npx expo install @react-native-picker/picker
    ```
 
 2. Start the app
 
    ```bash
+    cd med-app
     npx expo start
    ```
 
