@@ -11,15 +11,51 @@ import {
   Platform,
 } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
+import { createBaseTables, dropAllTables, insertBaseData } from '../../database/database'; 
 
 export default function Settings() {
   const [allowReminders, setAllowReminders] = useState(false);
-  const [beforeTime, setBeforeTime] = useState('10'); // in minutes
-  const [afterTime, setAfterTime] = useState('5'); // in minutes
+  const [beforeTime, setBeforeTime] = useState('10');
+  const [afterTime, setAfterTime] = useState('5');
 
   const handleSave = () => {
     Alert.alert('Settings Saved', `Reminders: ${allowReminders ? 'On' : 'Off'}\nRemind Before: ${beforeTime} min\nRemind After: ${afterTime} min`);
-    // Save logic goes here (AsyncStorage, API, etc.)
+  };
+
+  const handleDropTables = () => {
+    console.log('Drop Tables button pressed');
+    try {
+      dropAllTables();
+      console.log('All tables dropped successfully');
+    }
+    catch (error) {
+      console.error('Error dropping tables:', error);
+      Alert.alert('Error', 'Failed to drop tables. Please try again.');
+    }
+  };
+
+  const handleRecreateTables = () => {
+    console.log('Recreate Tables button pressed');
+    try {
+      createBaseTables();
+      console.log('All tables created or unmodified successfully');
+    }
+    catch (error) {
+      console.error('Error creating tables:', error);
+      Alert.alert('Error', 'Failed to create tables. Please try again.');
+    }
+  };
+
+  const handleInsertTestData = () => {
+    console.log('Insert Test Data button pressed');
+    try {
+      insertBaseData();
+      console.log('Data inserted successfully');
+    }
+    catch (error) {
+      console.error('Error inserting data:', error);
+      Alert.alert('Error', 'Failed to insert data. Please try again.');
+    }
   };
 
   return (
@@ -47,7 +83,7 @@ export default function Settings() {
               value={beforeTime}
               onChangeText={setBeforeTime}
               placeholder="e.g. 10"
-              placeholderTextColor="#999" // Placeholder color for better contrast
+              placeholderTextColor="#999"
             />
           </View>
 
@@ -59,7 +95,7 @@ export default function Settings() {
               value={afterTime}
               onChangeText={setAfterTime}
               placeholder="e.g. 5"
-              placeholderTextColor="#999" // Placeholder color for better contrast
+              placeholderTextColor="#999"
             />
           </View>
         </>
@@ -67,6 +103,30 @@ export default function Settings() {
 
       <TouchableOpacity style={styles.button} onPress={handleSave}>
         <Text style={styles.buttonText}>Save Settings</Text>
+      </TouchableOpacity>
+
+      {/* Database Operations Section */}
+      <Text style={[styles.header, { marginTop: 40 }]}>Database Operations</Text>
+      
+      <TouchableOpacity 
+        style={[styles.button, styles.dangerButton]} 
+        onPress={handleDropTables}
+      >
+        <Text style={styles.buttonText}>Drop All Tables</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={[styles.button, styles.warningButton]} 
+        onPress={handleRecreateTables}
+      >
+        <Text style={styles.buttonText}>Recreate Tables</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={[styles.button, styles.successButton]} 
+        onPress={handleInsertTestData}
+      >
+        <Text style={styles.buttonText}>Insert Test Data</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
@@ -112,6 +172,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 20,
     alignItems: 'center',
+  },
+  dangerButton: {
+    backgroundColor: '#e74c3c', // Red for destructive actions
+  },
+  warningButton: {
+    backgroundColor: '#f39c12', // Orange for warnings
+  },
+  successButton: {
+    backgroundColor: '#2ecc71', // Green for positive actions
   },
   buttonText: {
     color: '#fff',

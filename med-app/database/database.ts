@@ -13,24 +13,21 @@ export const createBaseTables = async () => {
         // Create Medicine table
         console.log('Creating Medicine table...');
         await db.execAsync(`
-            CREATE TABLE IF NOT EXISTS Medicine
-                (
-                MedID INT NOT NULL AUTOINCREMENT,
-                MedName VARCHAR(50) NOT NULL,
-                DosageQuantity FLOAT NOT NULL,
-                DosageMeasurment VARCHAR(20) NOT NULL,
-                FrequencyHours INT, 
-                Timing VARCHAR(50),
-                LastTaken DATETIME,
-                Route VARCHAR(50) NOT NULL,
-                SpecialDescription VARCHAR(1000),
-                UsageRequired BOOLEAN NOT NULL,
-                UsagePeriod INT,
-                SideEffects VARCHAR(200),
-                Interactions VARCHAR(200),
-                Quantity FLOAT NOT NULL,
-                PRIMARY KEY (MedID),
-                UNIQUE (MedName)
+            CREATE TABLE IF NOT EXISTS Medicine (
+                MedID INTEGER PRIMARY KEY AUTOINCREMENT,  /* Fixed: INTEGER + AUTOINCREMENT */
+                MedName TEXT NOT NULL UNIQUE,
+                DosageQuantity REAL NOT NULL,
+                DosageMeasurment TEXT NOT NULL,
+                FrequencyHours INTEGER,
+                Timing TEXT,
+                LastTaken TEXT,  /* SQLite doesn't have DATETIME - use TEXT or INTEGER */
+                Route TEXT NOT NULL,
+                SpecialDescription TEXT,
+                UsageRequired INTEGER NOT NULL,  /* SQLite uses 0/1 for booleans */
+                UsagePeriod INTEGER,
+                SideEffects TEXT,
+                Interactions TEXT,
+                Quantity REAL NOT NULL
             );
         `);
         console.log('Medicine table created successfully.');
@@ -203,41 +200,55 @@ export const fetchAllMedicineDescriptions = async (): Promise<Types.MedicineDesc
     }
 };
 
+// MedName TEXT NOT NULL UNIQUE,
+//                 DosageQuantity REAL NOT NULL,
+//                 DosageMeasurment TEXT NOT NULL,
+//                 FrequencyHours INTEGER,
+//                 Timing TEXT,
+//                 LastTaken TEXT,  /* SQLite doesn't have DATETIME - use TEXT or INTEGER */
+//                 Route TEXT NOT NULL,
+//                 SpecialDescription TEXT,
+//                 UsageRequired INTEGER NOT NULL,  /* SQLite uses 0/1 for booleans */
+//                 UsagePeriod INTEGER,
+//                 SideEffects TEXT,
+//                 Interactions TEXT,
+//                 Quantity REAL NOT NULL
+
 export const insertBaseData = async () => {
     try {
         console.log('Inserting base data...');
         await db.execAsync(`
 -- Medicine Inserts
-INSERT INTO Medicine VALUES (1, 'Ibuprofen', 1, 'tablet', 6, 'Morning and evening', '2023-05-15 08:00:00', 'oral', 'Take with food to avoid stomach upset', TRUE, 7, 'Upset stomach, dizziness', 'May interact with blood pressure medications', 30);
-INSERT INTO Medicine VALUES (2, 'Amoxicillin', 1, 'capsule', 8, NULL, '2023-05-14 12:00:00', 'oral', 'Complete full course even if symptoms improve', TRUE, 10, 'Diarrhea, rash', 'May reduce effectiveness of birth control pills', 20);
-INSERT INTO Medicine VALUES (3, 'Lisinopril', 1, 'tablet', 24, 'Morning', '2023-05-15 07:30:00', 'oral', 'Take at the same time each day', TRUE, NULL, 'Dry cough, dizziness', 'Avoid potassium supplements', 90);
-INSERT INTO Medicine VALUES (4, 'Atorvastatin', 1, 'tablet', 24, 'Evening', '2023-05-14 20:00:00', 'oral', 'Take with or without food', TRUE, NULL, 'Muscle pain, digestive issues', 'Grapefruit may increase side effects', 30);
-INSERT INTO Medicine VALUES (5, 'Albuterol Inhaler', 2, 'puff', NULL, 'As needed', '2023-05-15 09:00:00', 'inhalation', 'Shake well before use', FALSE, NULL, 'Nervousness, rapid heartbeat', 'May interact with beta-blockers', 200);
-INSERT INTO Medicine VALUES (6, 'Omeprazole', 1, 'capsule', 24, 'Before breakfast', '2023-05-15 07:00:00', 'oral', 'Take before eating', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
-INSERT INTO Medicine VALUES (7, 'Metformin', 1, 'tablet', 12, 'Morning and evening', '2023-05-14 19:00:00', 'oral', 'Take with meals to reduce stomach upset', TRUE, NULL, 'Nausea, diarrhea', 'Contrast dye may affect kidney function', 60);
-INSERT INTO Medicine VALUES (8, 'Levothyroxine', 1, 'tablet', 24, 'Morning on empty stomach', '2023-05-15 06:00:00', 'oral', 'Take 30-60 minutes before breakfast', TRUE, NULL, 'Palpitations, weight loss', 'Calcium supplements may reduce absorption', 30);
-INSERT INTO Medicine VALUES (9, 'Sertraline', 1, 'tablet', 24, 'Morning or evening', '2023-05-14 08:00:00', 'oral', 'May take several weeks to feel full effect', TRUE, NULL, 'Nausea, insomnia', 'MAOIs can cause serious interactions', 30);
-INSERT INTO Medicine VALUES (10, 'Acetaminophen', 2, 'tablet', 6, NULL, '2023-05-15 10:00:00', 'oral', 'Do not exceed 4000mg per day', FALSE, 3, 'Liver damage in overdose', 'Alcohol increases risk of liver damage', 24);
-INSERT INTO Medicine VALUES (11, 'Diphenhydramine', 1, 'capsule', NULL, 'At bedtime', '2023-05-14 22:00:00', 'oral', 'May cause drowsiness', FALSE, NULL, 'Drowsiness, dry mouth', 'May enhance alcohol effects', 30);
-INSERT INTO Medicine VALUES (12, 'Fluoxetine', 1, 'capsule', 24, 'Morning', '2023-05-15 08:30:00', 'oral', 'Swallow whole, do not crush', TRUE, NULL, 'Headache, nervousness', 'Do not take with MAOIs', 30);
-INSERT INTO Medicine VALUES (13, 'Simvastatin', 1, 'tablet', 24, 'Evening', '2023-05-14 21:00:00', 'oral', 'Take with or without food', TRUE, NULL, 'Muscle pain, constipation', 'Avoid grapefruit juice', 30);
-INSERT INTO Medicine VALUES (14, 'Loratadine', 1, 'tablet', 24, NULL, '2023-05-15 09:00:00', 'oral', 'Non-drowsy formula', FALSE, NULL, 'Headache, dry mouth', 'May interact with certain antifungals', 10);
-INSERT INTO Medicine VALUES (15, 'Warfarin', 1, 'tablet', 24, 'Evening', '2023-05-14 18:00:00', 'oral', 'Maintain consistent vitamin K intake', TRUE, NULL, 'Bleeding, bruising', 'Many drug and food interactions', 30);
-INSERT INTO Medicine VALUES (16, 'Hydrochlorothiazide', 1, 'tablet', 24, 'Morning', '2023-05-15 07:00:00', 'oral', 'Take early to avoid nighttime urination', TRUE, NULL, 'Increased urination, dizziness', 'May increase lithium levels', 30);
-INSERT INTO Medicine VALUES (17, 'Insulin Glargine', 10, 'units', 24, 'Evening', '2023-05-14 20:30:00', 'injection', 'Inject under skin of abdomen, thigh or upper arm', TRUE, NULL, 'Low blood sugar, weight gain', 'Alcohol may increase hypoglycemia risk', 300);
-INSERT INTO Medicine VALUES (18, 'Diazepam', 1, 'tablet', NULL, 'As needed', '2023-05-15 00:00:00', 'oral', 'Use only when necessary', FALSE, NULL, 'Drowsiness, dizziness', 'Alcohol increases CNS depression', 20);
-INSERT INTO Medicine VALUES (19, 'Cephalexin', 1, 'capsule', 8, NULL, '2023-05-14 12:00:00', 'oral', 'Take with plenty of water', TRUE, 7, 'Diarrhea, stomach upset', 'Probenecid may increase levels', 40);
-INSERT INTO Medicine VALUES (20, 'Prednisone', 2, 'tablet', 24, 'Morning with food', '2023-05-15 08:00:00', 'oral', 'Do not stop suddenly', TRUE, 5, 'Increased appetite, insomnia', 'May reduce vaccine effectiveness', 10);
-INSERT INTO Medicine VALUES (21, 'Tramadol', 1, 'tablet', 6, NULL, '2023-05-14 15:00:00', 'oral', 'May cause drowsiness', FALSE, 3, 'Dizziness, constipation', 'Do not take with other CNS depressants', 18);
-INSERT INTO Medicine VALUES (22, 'Montelukast', 1, 'tablet', 24, 'At bedtime', '2023-05-15 21:00:00', 'oral', 'For asthma maintenance', TRUE, NULL, 'Headache, stomach pain', 'May interact with phenobarbital', 30);
-INSERT INTO Medicine VALUES (23, 'Esomeprazole', 1, 'capsule', 24, 'Before breakfast', '2023-05-14 07:30:00', 'oral', 'Swallow whole, do not chew', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
-INSERT INTO Medicine VALUES (24, 'Metoprolol', 1, 'tablet', 12, 'Morning and evening', '2023-05-15 08:00:00', 'oral', 'Do not stop suddenly', TRUE, NULL, 'Fatigue, dizziness', 'May interact with other heart medications', 60);
-INSERT INTO Medicine VALUES (25, 'Losartan', 1, 'tablet', 24, NULL, '2023-05-14 09:00:00', 'oral', 'May take with or without food', TRUE, NULL, 'Dizziness, back pain', 'NSAIDs may reduce effectiveness', 30);
-INSERT INTO Medicine VALUES (26, 'Doxycycline', 1, 'tablet', 12, NULL, '2023-05-15 08:00:00', 'oral', 'Take with plenty of water, avoid lying down', TRUE, 10, 'Sun sensitivity, nausea', 'Dairy products may reduce absorption', 20);
-INSERT INTO Medicine VALUES (27, 'Furosemide', 1, 'tablet', 24, 'Morning', '2023-05-14 07:00:00', 'oral', 'Take early to avoid nighttime urination', TRUE, NULL, 'Increased urination, dizziness', 'May increase lithium levels', 30);
-INSERT INTO Medicine VALUES (28, 'Cetirizine', 1, 'tablet', 24, NULL, '2023-05-15 09:00:00', 'oral', 'Non-drowsy formula', FALSE, NULL, 'Dry mouth, fatigue', 'May interact with CNS depressants', 30);
-INSERT INTO Medicine VALUES (29, 'Gabapentin', 1, 'capsule', 8, NULL, '2023-05-14 08:00:00', 'oral', 'Dose may be gradually increased', TRUE, NULL, 'Dizziness, fatigue', 'Antacids may reduce absorption', 90);
-INSERT INTO Medicine VALUES (30, 'Pantoprazole', 1, 'tablet', 24, 'Before breakfast', '2023-05-15 07:00:00', 'oral', 'Swallow whole with water', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Ibuprofen', 1, 'tablet', 6, 'Morning and evening', '2023-05-15 08:00:00', 'oral', 'Take with food to avoid stomach upset', TRUE, 7, 'Upset stomach, dizziness', 'May interact with blood pressure medications', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Amoxicillin', 1, 'capsule', 8, NULL, '2023-05-14 12:00:00', 'oral', 'Complete full course even if symptoms improve', TRUE, 10, 'Diarrhea, rash', 'May reduce effectiveness of birth control pills', 20);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Lisinopril', 1, 'tablet', 24, 'Morning', '2023-05-15 07:30:00', 'oral', 'Take at the same time each day', TRUE, NULL, 'Dry cough, dizziness', 'Avoid potassium supplements', 90);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Atorvastatin', 1, 'tablet', 24, 'Evening', '2023-05-14 20:00:00', 'oral', 'Take with or without food', TRUE, NULL, 'Muscle pain, digestive issues', 'Grapefruit may increase side effects', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Albuterol Inhaler', 2, 'puff', NULL, 'As needed', '2023-05-15 09:00:00', 'inhalation', 'Shake well before use', FALSE, NULL, 'Nervousness, rapid heartbeat', 'May interact with beta-blockers', 200);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Omeprazole', 1, 'capsule', 24, 'Before breakfast', '2023-05-15 07:00:00', 'oral', 'Take before eating', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Metformin', 1, 'tablet', 12, 'Morning and evening', '2023-05-14 19:00:00', 'oral', 'Take with meals to reduce stomach upset', TRUE, NULL, 'Nausea, diarrhea', 'Contrast dye may affect kidney function', 60);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Levothyroxine', 1, 'tablet', 24, 'Morning on empty stomach', '2023-05-15 06:00:00', 'oral', 'Take 30-60 minutes before breakfast', TRUE, NULL, 'Palpitations, weight loss', 'Calcium supplements may reduce absorption', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Sertraline', 1, 'tablet', 24, 'Morning or evening', '2023-05-14 08:00:00', 'oral', 'May take several weeks to feel full effect', TRUE, NULL, 'Nausea, insomnia', 'MAOIs can cause serious interactions', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Acetaminophen', 2, 'tablet', 6, NULL, '2023-05-15 10:00:00', 'oral', 'Do not exceed 4000mg per day', FALSE, 3, 'Liver damage in overdose', 'Alcohol increases risk of liver damage', 24);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Diphenhydramine', 1, 'capsule', NULL, 'At bedtime', '2023-05-14 22:00:00', 'oral', 'May cause drowsiness', FALSE, NULL, 'Drowsiness, dry mouth', 'May enhance alcohol effects', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Fluoxetine', 1, 'capsule', 24, 'Morning', '2023-05-15 08:30:00', 'oral', 'Swallow whole, do not crush', TRUE, NULL, 'Headache, nervousness', 'Do not take with MAOIs', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Simvastatin', 1, 'tablet', 24, 'Evening', '2023-05-14 21:00:00', 'oral', 'Take with or without food', TRUE, NULL, 'Muscle pain, constipation', 'Avoid grapefruit juice', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Loratadine', 1, 'tablet', 24, NULL, '2023-05-15 09:00:00', 'oral', 'Non-drowsy formula', FALSE, NULL, 'Headache, dry mouth', 'May interact with certain antifungals', 10);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Warfarin', 1, 'tablet', 24, 'Evening', '2023-05-14 18:00:00', 'oral', 'Maintain consistent vitamin K intake', TRUE, NULL, 'Bleeding, bruising', 'Many drug and food interactions', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Hydrochlorothiazide', 1, 'tablet', 24, 'Morning', '2023-05-15 07:00:00', 'oral', 'Take early to avoid nighttime urination', TRUE, NULL, 'Increased urination, dizziness', 'May increase lithium levels', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Insulin Glargine', 10, 'units', 24, 'Evening', '2023-05-14 20:30:00', 'injection', 'Inject under skin of abdomen, thigh or upper arm', TRUE, NULL, 'Low blood sugar, weight gain', 'Alcohol may increase hypoglycemia risk', 300);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Diazepam', 1, 'tablet', NULL, 'As needed', '2023-05-15 00:00:00', 'oral', 'Use only when necessary', FALSE, NULL, 'Drowsiness, dizziness', 'Alcohol increases CNS depression', 20);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Cephalexin', 1, 'capsule', 8, NULL, '2023-05-14 12:00:00', 'oral', 'Take with plenty of water', TRUE, 7, 'Diarrhea, stomach upset', 'Probenecid may increase levels', 40);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Prednisone', 2, 'tablet', 24, 'Morning with food', '2023-05-15 08:00:00', 'oral', 'Do not stop suddenly', TRUE, 5, 'Increased appetite, insomnia', 'May reduce vaccine effectiveness', 10);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Tramadol', 1, 'tablet', 6, NULL, '2023-05-14 15:00:00', 'oral', 'May cause drowsiness', FALSE, 3, 'Dizziness, constipation', 'Do not take with other CNS depressants', 18);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Montelukast', 1, 'tablet', 24, 'At bedtime', '2023-05-15 21:00:00', 'oral', 'For asthma maintenance', TRUE, NULL, 'Headache, stomach pain', 'May interact with phenobarbital', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Esomeprazole', 1, 'capsule', 24, 'Before breakfast', '2023-05-14 07:30:00', 'oral', 'Swallow whole, do not chew', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Metoprolol', 1, 'tablet', 12, 'Morning and evening', '2023-05-15 08:00:00', 'oral', 'Do not stop suddenly', TRUE, NULL, 'Fatigue, dizziness', 'May interact with other heart medications', 60);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Losartan', 1, 'tablet', 24, NULL, '2023-05-14 09:00:00', 'oral', 'May take with or without food', TRUE, NULL, 'Dizziness, back pain', 'NSAIDs may reduce effectiveness', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Doxycycline', 1, 'tablet', 12, NULL, '2023-05-15 08:00:00', 'oral', 'Take with plenty of water, avoid lying down', TRUE, 10, 'Sun sensitivity, nausea', 'Dairy products may reduce absorption', 20);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Furosemide', 1, 'tablet', 24, 'Morning', '2023-05-14 07:00:00', 'oral', 'Take early to avoid nighttime urination', TRUE, NULL, 'Increased urination, dizziness', 'May increase lithium levels', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Cetirizine', 1, 'tablet', 24, NULL, '2023-05-15 09:00:00', 'oral', 'Non-drowsy formula', FALSE, NULL, 'Dry mouth, fatigue', 'May interact with CNS depressants', 30);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Gabapentin', 1, 'capsule', 8, NULL, '2023-05-14 08:00:00', 'oral', 'Dose may be gradually increased', TRUE, NULL, 'Dizziness, fatigue', 'Antacids may reduce absorption', 90);
+INSERT INTO Medicine (MedName, DosageQuantity, DosageMeasurment, FrequencyHours, Timing, LastTaken, Route, SpecialDescription, UsageRequired, UsagePeriod, SideEffects, Interactions, Quantity) VALUES ('Pantoprazole', 1, 'tablet', 24, 'Before breakfast', '2023-05-15 07:00:00', 'oral', 'Swallow whole with water', TRUE, 14, 'Headache, diarrhea', 'May affect absorption of other drugs', 14);
 
 -- Description Inserts (only for some medicines)
 INSERT INTO MedicineDescription VALUES ('tablet', 'round', 'white', 'small', '500', 'IB', NULL, 'smooth', NULL, 1);
