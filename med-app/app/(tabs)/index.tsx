@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import Add from '../add'; // Import the Add component
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MedicationCard from '../components/MedicationCard';
 import { Medication, sampleMedications, toggleMedicationStatus, getMedicationsForDay } from '../Data/medData';
+import * as Types from '../../interface/interface';
+import * as Database from '../../database/database';
 
 /**
  * Generates the current week's days and dates for the calendar strip
@@ -37,8 +39,20 @@ const getCurrentWeek = () => {
 };
 
 export default function HomeScreen() {
+    useEffect(() => {
+      // Fetch products when the component mounts
+      Database.fetchAllMedAndDesc().then((data) => {
+        setmedAndDescDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+    }, []); 
+
   // Get the current week's days and dates for the calendar strip
   const { weekDays, weekDates } = getCurrentWeek();
+  const [medAndDescDataFromDB, setmedAndDescDataFromDB] = useState<Types.MedicineWithDescription[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add this state
   
   // State for tracking which date is selected in the calendar strip
   const [selectedDateIndex, setSelectedDateIndex] = useState(new Date().getDay()); // Default to today
