@@ -188,14 +188,28 @@ export const fetchAllMedicine = async (): Promise<Types.Medicine[] | null> => {
 
 export const fetchAllMedicineDescriptions = async (): Promise<Types.MedicineDescription[] | null> => {
     try {
-        const plants = await db.getAllAsync<Types.MedicineDescription>(`
+        const MedDesc = await db.getAllAsync<Types.MedicineDescription>(`
             SELECT *
             FROM MedicineDescription
             ORDER BY MedID ASC
         `);
-        return plants;
+        return MedDesc;
     } catch (error) {
         console.error('Failed to fetch Medicine:', error);
+        return null;
+    }
+};
+
+export const fetchAllMedAndDesc = async (): Promise<Types.MedicineWithDescription[] | null> => {
+    try {
+        const medAndDesc = await db.getAllAsync<Types.MedicineWithDescription>(`
+            SELECT m.*, md.* 
+            FROM Medicine m
+            LEFT JOIN MedicineDescription md ON m.MedID = md.MedID;
+        `);
+        return medAndDesc;
+    } catch (error) {
+        console.error('Failed to fetch Medicine and Description:', error);
         return null;
     }
 };

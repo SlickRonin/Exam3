@@ -24,15 +24,15 @@ export default function Schedule() {
   const [medAndDescDataFromDB, setmedAndDescDataFromDB] = useState<Types.MedicineWithDescription[]>([]);
   const [refreshKey, setRefreshKey] = useState(0); // Add this state
   
-    // useEffect(() => {
-    //   // Fetch products when the component mounts
-    //   Database.fetchAllPlants().then((data) => {
-    //     setPlantDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
-    //     console.log('Fetched products:', data);
-    //   }).catch((error) => {
-    //     console.error('Error fetching products:', error);
-    //   });
-    // }, []); 
+    useEffect(() => {
+      // Fetch products when the component mounts
+      Database.fetchAllMedAndDesc().then((data) => {
+        setmedAndDescDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+    }, []); 
 
   const renderCalendar = () => {
     const calendarDays = [];
