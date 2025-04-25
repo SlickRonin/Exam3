@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
+import * as Types from '../../interface/interface';
+import * as Database from '../../database/database';
 
 const getDaysInMonth = (month: number, year: number) => {
   return new Date(year, month + 1, 0).getDate();
@@ -19,6 +21,18 @@ export default function Schedule() {
   const daysInMonth = getDaysInMonth(month, year);
 
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [medAndDescDataFromDB, setmedAndDescDataFromDB] = useState<Types.MedicineWithDescription[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add this state
+  
+    // useEffect(() => {
+    //   // Fetch products when the component mounts
+    //   Database.fetchAllPlants().then((data) => {
+    //     setPlantDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+    //     console.log('Fetched products:', data);
+    //   }).catch((error) => {
+    //     console.error('Error fetching products:', error);
+    //   });
+    // }, []); 
 
   const renderCalendar = () => {
     const calendarDays = [];

@@ -34,3 +34,7 @@ export interface OverdueMedicine {
     LastTaken: string;
     OverdueBy: number;
   }
+
+export interface MedicineWithDescription extends Medicine {
+  description: MedicineDescription;
+}
