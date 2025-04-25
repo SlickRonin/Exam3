@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   View,
@@ -8,8 +8,29 @@ import {
   ScrollView,
 } from 'react-native';
 import { globalStyles } from '../../styles/globalStyles';
+import * as Types from '../../interface/interface';
+import * as Database from '../../database/database';
 
 export default function AskAI() {
+  const [medAndDescDataFromDB, setMedAndDescDataFromDB] = useState<Types.MedicineWithDescription[]>([]);
+  const [overdueMedicineDataFromDB, setOverdueMedicineDataFromDB] = useState<Types.OverdueMedicine[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add this state
+  useEffect(() => {
+      // Fetch products when the component mounts
+      Database.fetchAllMedAndDesc().then((data) => {
+        setMedAndDescDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+      Database.getOverdueMedicines().then((data) => {
+        setOverdueMedicineDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+    }, []); 
+
   const [input, setInput] = useState('');
   const [response, setResponse] = useState('');
 
