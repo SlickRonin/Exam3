@@ -299,17 +299,20 @@ export const getOverdueMedicines = async (): Promise<Types.OverdueMedicine[]> =>
       // Explicitly type the results
       const results = await db.getAllAsync<Types.OverdueMedicine>(`
         SELECT 
-          m.MedID, 
-          m.FrequencyHours, 
-          m.LastTaken,
-          ((strftime('%s', ?) - strftime('%s', m.LastTaken)) / 3600.0) / m.FrequencyHours as OverdueBy
+        m.MedID, 
+        m.MedName,
+        m.FrequencyHours, 
+        m.LastTaken,
+        datetime('now') AS CurrentTime,
+        (strftime('%s','now') - strftime('%s',m.LastTaken)) / 3600.0 AS HoursDifference,
+        (strftime('%s','now') - strftime('%s',m.LastTaken)) / (m.FrequencyHours * 3600.0) AS OverdueBy
         FROM Medicine m
         WHERE 
-          m.FrequencyHours IS NOT NULL 
-          AND m.LastTaken IS NOT NULL
-          AND ((strftime('%s', ?) - strftime('%s', m.LastTaken)) / 3600.0 >= m.FrequencyHours
-          AND m.UsageRequired = 1
-      `, [currentTime, currentTime]);
+        m.FrequencyHours IS NOT NULL 
+        AND m.LastTaken IS NOT NULL
+        AND (strftime('%s','now') - strftime('%s',m.LastTaken)) / (m.FrequencyHours * 3600.0) >= 1
+        AND m.UsageRequired = 1;
+      `);
   
       console.log(`Found ${results.length} overdue medicines`);
       return results;

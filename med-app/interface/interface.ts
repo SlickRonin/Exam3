@@ -30,8 +30,11 @@ export interface MedicineDescription {
 
 export interface OverdueMedicine {
     MedID: number;
+    MedName: string;
     FrequencyHours: number;
     LastTaken: string;
+    CurrentTime: string;
+    HoursDifference: number;
     OverdueBy: number;
   }
 
