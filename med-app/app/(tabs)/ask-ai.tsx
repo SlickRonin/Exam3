@@ -29,20 +29,8 @@ const client = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-// NOTE: if you're trying to edit a voice theme (e.g., add, delete, modify), you need to corroborate the 'icon' variable for both this interface
-// and the voiceThemes object
-interface VoiceTheme {
-  color: string;
-  icon: "record-voice-over" | "surround-sound" | "auto-stories" | "mic" | "stars" | "waves" | "air" | "star";
-  description: string;
-}
-
-interface VoiceThemeSelectorProps {
-  selectedVoice: string;
-  onVoiceSelected: (voice: string) => void;
-}
 // FIXME: test voice themes and research accessibility reqs
-const voiceThemes: Record<string, VoiceTheme> = {
+const voiceThemes: Record<string, Types.VoiceTheme> = {
   alloy: { color: '#6200ee', icon: 'record-voice-over', description: 'Neutral, balanced voice with clear articulation' },
   echo: { color: '#3700b3', icon: 'surround-sound', description: 'Deep, resonant voice with a measured pace' },
   fable: { color: '#03dac4', icon: 'auto-stories', description: 'Warm, friendly voice with expressive tones' },
@@ -54,7 +42,7 @@ const voiceThemes: Record<string, VoiceTheme> = {
 };
 // voice theme selector component; might reduce to single voice
 // FIXME: fix this god-awful component mapping--columns, not rows
-const VoiceThemeSelector: React.FC<VoiceThemeSelectorProps> = ({ selectedVoice, onVoiceSelected }) => {
+const VoiceThemeSelector: React.FC<Types.VoiceThemeSelectorProps> = ({ selectedVoice, onVoiceSelected }) => {
   return (
     <View style={styles.voiceThemeContainer}>
       <Text style={styles.voiceThemeTitle}>Select Voice Theme</Text>
@@ -80,29 +68,6 @@ const VoiceThemeSelector: React.FC<VoiceThemeSelectorProps> = ({ selectedVoice, 
 };
 
 export default function AskAI() {
-  const [medAndDescDataFromDB, setMedAndDescDataFromDB] = useState<Types.MedicineWithDescription[]>([]);
-  const [overdueMedicineDataFromDB, setOverdueMedicineDataFromDB] = useState<Types.OverdueMedicine[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // Add this state
-  useEffect(() => {
-      // Fetch products when the component mounts
-      db.fetchAllMedAndDesc().then((data) => {
-        setMedAndDescDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
-        //console.log('Fetched medicine and description:', data);
-      }).catch((error) => {
-        console.error('Error fetching medicine and description:', error);
-      });
-      db.getOverdueMedicines().then((data) => {
-        setOverdueMedicineDataFromDB(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
-        //console.log('Fetched medicine and description:', data);
-      }).catch((error) => {
-        console.error('Error fetching medicine and description:', error);
-      });
-    }, []);
-
-  // base medication data
-  const baseMeds = db.fetchAllMedicine();
-  console.log("Base meds:", baseMeds);
-
   // handlers
   const [ask, setAsk] = useState<string>('');
   const [response, setResponse] = useState<string>('');
@@ -111,24 +76,38 @@ export default function AskAI() {
   const [sound, setSound] = useState<Audio.Sound | undefined>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioLoading, setAudioLoading] = useState(false);
-
   // user info
-  const [meds, setMeds] = useState<string>('');
+  const [baseMeds, setBaseMeds] = useState<Types.MedicineWithDescription[]>([]);
   const [medsTaken, setMedsTaken] = useState<string>('');
   const [medsNotTaken, setMedsNotTaken] = useState<string>('');
-  const [medsOverdue, setMedsOverdue] = useState<string>('');
+  const [overdueMeds, setOverdueMeds] = useState<Types.OverdueMedicine[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add this state
+  useEffect(() => {
+      // Fetch products when the component mounts
+      db.fetchAllMedAndDesc().then((data) => {
+        setBaseMeds(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+      db.getOverdueMedicines().then((data) => {
+        setOverdueMeds(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
+        //console.log('Fetched medicine and description:', data);
+      }).catch((error) => {
+        console.error('Error fetching medicine and description:', error);
+      });
+      // clean up audio when component unmounts
+      return sound
+        ? () => {
+            sound.unloadAsync();
+          }
+        : undefined;
+    }, [sound]);
+
   // user analysis outputs
   // NOTE: don't shorten the word 'analysis'; typing the last four letters makes all the difference
   const [finalAnalysis, setFinalAnalysis] = useState<string>('');
   const [loadingSection, setLoadingSection] = useState<string | null>(null);
-  // clean up audio when component unmounts
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
 
   type ResponseType = {
       output_text?: string;
@@ -149,9 +128,19 @@ export default function AskAI() {
 
   // FIXME: in progress; implement toggle for meds taken/not taken/overdue
   const runUserAnalysis = async () => {
-    setMeds(''); setMedsTaken(''); setMedsNotTaken(''); setMedsOverdue(''); setFinalAnalysis('');
+    setMedsTaken(''); setMedsNotTaken(''); setOverdueMeds([]); setFinalAnalysis('');
 
-    const systemPrompt = ``;  //FIXME: add system prompt
+    // FIXME: add name for AI assistant
+    const systemPrompt = `You are ___________, a medication manager for people who struggle to keep track of their daily medicine 
+    intake (e.g., senior citizens). Your job is to provide advice and answer questions regarding the user's current medicine 
+    schedule: ${baseMeds}. You are also responsible for researching any drug interactions (e.g., among medications, between 
+    medications and food or drink) and answering any general health questions the user has. THIS WILL REQUIRE YOU TO USE THE 
+    SEARCH FEATURE TO OBTAIN THE MOST RECENT AND ACCURATE MEDICAL DATA/ADVICE. Be clear and concise with your responses (i.e., 
+    no unnecessary flourishes or redundant information) and answer using plaintext only (i.e., no markdown or any special 
+    characters used for formatting). After every query, kindly inform the user that you are not a licensed professional and, for 
+    any questions you cannot sufficiently answer, offer suggestions for which the user can acquire more reputable advice (e.g., 
+    for health organizations: websites, articles, academic journals, etc.).
+    `;
 
     // include meds taken
     if (medsTaken.length > 0 /* && someBooleanCheck */) {
@@ -160,7 +149,8 @@ export default function AskAI() {
         const medsTakenResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${medsTaken}) and kindly advise the user not to take them again today.`
+          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${medsTaken}) and kindly 
+          advise the user not to take them again today.`
         }) as ResponseType; // type assertion
         console.log("Meds taken response:", medsTakenResponse);
         const medsTakenContent = extractContent(medsTakenResponse);
@@ -180,7 +170,8 @@ export default function AskAI() {
         const medsNotTakenResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${medsNotTaken}) and kindly advise the user not to take them again today.`
+          input: `${systemPrompt}\n\nProvide a list of medications the user has not yet taken (i.e., ${medsNotTaken}) and kindly 
+          advise the user to take them today.`
         }) as ResponseType; // type assertion
         console.log("Meds not taken response:", medsNotTakenResponse);
         const medsNotTakenContent = extractContent(medsNotTakenResponse);
@@ -194,13 +185,14 @@ export default function AskAI() {
       console.log("All medications taken today.");
     }
     // include overdue meds
-    if (medsOverdue.length > 0 /* && someBooleanCheck */) {
+    if (overdueMeds.length > 0 /* && someBooleanCheck */) {
       setLoadingSection('medsOverdue');
       try {
         const medsOverdueResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${medsOverdue}) and kindly advise the user not to take them again today.`
+          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${overdueMeds}) and kindly 
+          advise the user to take them today while insisting upon the urgency of taking their medication on time.`
         }) as ResponseType; // type assertion
         console.log("Meds overdue response:", medsOverdueResponse);
         const medsOverdueContent = extractContent(medsOverdueResponse);
@@ -219,7 +211,7 @@ export default function AskAI() {
     ${systemPrompt}\n\nBased on the information provided, and the content of these (optional) arguments:
     \n- Medications taken: ${medsTaken}
     \n- Medications not taken: ${medsNotTaken}
-    \n- Medications overdue: ${medsOverdue}
+    \n- Medications overdue: ${overdueMeds}
     \n\nPlease answer the user's query to the best of your ability.
     `;
   }
