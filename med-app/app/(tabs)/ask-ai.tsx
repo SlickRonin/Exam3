@@ -71,7 +71,6 @@ const VoiceThemeSelector: React.FC<Types.VoiceThemeSelectorProps> = ({ selectedV
 export default function AskAI() {
   // handlers
   const [ask, setAsk] = useState<string>('');
-  const [response, setResponse] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("alloy");
   const [sound, setSound] = useState<Audio.Sound | undefined>();
@@ -82,7 +81,7 @@ export default function AskAI() {
   const [medsTaken, setMedsTaken] = useState<string>('');
   const [medsNotTaken, setMedsNotTaken] = useState<string>('');
   const [overdueMeds, setOverdueMeds] = useState<Types.OverdueMedicine[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // Add this state
+  const [refreshKey, setRefreshKey] = useState(0); // FIXME: i do not know what this does
   useEffect(() => {
       // Fetch products when the component mounts
       db.fetchAllMedAndDesc().then((data) => {
@@ -251,6 +250,10 @@ export default function AskAI() {
       }) as ResponseType; // type assertion
       const finalContent = extractContent(finalResponse);
       setFinalAnalysis(finalContent);
+      
+      if (finalAnalysis) {
+        generateAudio(finalAnalysis);
+      }
     } catch (error) {
       console.error("Error generating final recommendation:", error);
       setFinalAnalysis("Error generating recommendation. Please try again.");
@@ -370,7 +373,23 @@ export default function AskAI() {
           </View>
         )}
 
-        {finalAnalysis !== '' && (
+        {/* Audio Controls */}
+        {finalAnalysis && sound && !audioLoading && (
+          <View style={styles.audioControlsContainer}>
+            <TouchableOpacity onPress={togglePlayPause} style={styles.audioButton}>
+              <MaterialIcons 
+                name={isPlaying ? "pause" : "play-arrow"} 
+                size={30} 
+                color="white" 
+              />
+              <Text style={styles.audioButtonText}>
+                {isPlaying ? "Pause" : "Play"} Audio
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && finalAnalysis !== '' && (
           <View style={styles.responseBox}>
             <Text style={styles.responseText}>{finalAnalysis}</Text>
           </View>
