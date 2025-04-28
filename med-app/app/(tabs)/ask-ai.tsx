@@ -14,8 +14,9 @@ import {
 import OpenAI from "openai";
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
+import { AVPlaybackStatus } from 'expo-av/build/AV';
 import { MaterialIcons } from '@expo/vector-icons';
-import { OPENAI_API_KEY } from "@env";
+import { OPENAI_API_KEY } from '@env';
 import * as Types from '../../interface/interface';
 import * as db from '../../database/database';
 import { globalStyles } from '../../styles/globalStyles';
@@ -126,21 +127,49 @@ export default function AskAI() {
     return JSON.stringify(response);
   };
 
-  // FIXME: in progress; implement toggle for meds taken/not taken/overdue
+  // FIXME: add name for AI assistant
+  const systemPrompt = `You are ___________, a medication manager for people who struggle to keep track of their daily medicine 
+  intake (e.g., senior citizens). Your job is to provide advice and answer questions regarding the user's current medicine 
+  schedule: ${baseMeds}. You are also responsible for researching any drug interactions (e.g., among medications, between 
+  medications and food or drink) and answering any general health questions the user has. THIS WILL REQUIRE YOU TO USE THE 
+  SEARCH FEATURE TO OBTAIN THE MOST RECENT AND ACCURATE MEDICAL DATA/ADVICE. Be clear and concise with your responses (i.e., 
+  no unnecessary flourishes or redundant information) and answer using plaintext only (i.e., no markdown or any special 
+  characters used for formatting). After every query, kindly inform the user that you are not a licensed professional and, for 
+  any questions you cannot sufficiently answer, offer suggestions for which the user can acquire more reputable advice (e.g., 
+  for health organizations: websites, articles, academic journals, etc.).
+  `;
+
+  /*
+  // FIXME: in progress; async doesn't work; might not need if finalAnalysis handles basic user queries
+  const handleAsk = () => {
+    // placeholder response logic
+    if (!ask.trim()) {
+      setResponse('Please enter a question.');
+      console.log('No question entered.');
+    } else {
+      setResponse(`You asked: "${ask}"`);
+    }
+
+    setLoading(true);
+    try {
+      const result = await client.responses.create({
+        model: "gpt-4o-mini",
+        tools: [{ type: "web_search_preview" }],
+        input: systemPrompt,
+      });
+      setResponse(result.output_text || "No response received.");
+    } catch (error) {
+      console.error("Error generating response:", error);
+      setResponse("Failed to get a response.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  */
+
+  // FIXME: in progress; implement toggle for meds taken/not taken/overdue; fix medsTaken and medsNotTaken types
   const runUserAnalysis = async () => {
     setMedsTaken(''); setMedsNotTaken(''); setOverdueMeds([]); setFinalAnalysis('');
-
-    // FIXME: add name for AI assistant
-    const systemPrompt = `You are ___________, a medication manager for people who struggle to keep track of their daily medicine 
-    intake (e.g., senior citizens). Your job is to provide advice and answer questions regarding the user's current medicine 
-    schedule: ${baseMeds}. You are also responsible for researching any drug interactions (e.g., among medications, between 
-    medications and food or drink) and answering any general health questions the user has. THIS WILL REQUIRE YOU TO USE THE 
-    SEARCH FEATURE TO OBTAIN THE MOST RECENT AND ACCURATE MEDICAL DATA/ADVICE. Be clear and concise with your responses (i.e., 
-    no unnecessary flourishes or redundant information) and answer using plaintext only (i.e., no markdown or any special 
-    characters used for formatting). After every query, kindly inform the user that you are not a licensed professional and, for 
-    any questions you cannot sufficiently answer, offer suggestions for which the user can acquire more reputable advice (e.g., 
-    for health organizations: websites, articles, academic journals, etc.).
-    `;
 
     // include meds taken
     if (medsTaken.length > 0 /* && someBooleanCheck */) {
@@ -207,52 +236,146 @@ export default function AskAI() {
     }
 
     setLoadingSection('finalAnalysis');
-    const finalPrompt = `
-    ${systemPrompt}\n\nBased on the information provided, and the content of these (optional) arguments:
-    \n- Medications taken: ${medsTaken}
-    \n- Medications not taken: ${medsNotTaken}
-    \n- Medications overdue: ${overdueMeds}
-    \n\nPlease answer the user's query to the best of your ability.
-    `;
-  }
-  // FIXME: in progress
-  const handleAsk = () => {
-    // placeholder response logic
-    if (!ask.trim()) {
-      setResponse('Please enter a question.');
-      console.log('No question entered.');
-    } else {
-      setResponse(`You asked: "${ask}"`);
-    }
-
-    setLoading(true);
     try {
+      const finalPrompt = `
+      ${systemPrompt}\n\nBased on the information provided, and the content of these (optional) arguments:
+      \n- Medications taken: ${medsTaken}
+      \n- Medications not taken: ${medsNotTaken}
+      \n- Medications overdue: ${overdueMeds}
+      \n\nPlease answer the user's query to the best of your ability.
+      \n\nUser query: ${ask}
+      `;
+      const finalResponse = await client.responses.create({
+        model: 'o4-mini',
+        input: finalPrompt
+      }) as ResponseType; // type assertion
+      const finalContent = extractContent(finalResponse);
+      setFinalAnalysis(finalContent);
+    } catch (error) {
+      console.error("Error generating final recommendation:", error);
+      setFinalAnalysis("Error generating recommendation. Please try again.");
+    }
+    
+    setLoadingSection(null);
+  }
+
+  interface GenerateAudioProps {
+    text: string;
+  }
+
+  const generateAudio = async (text: string): Promise<void> => {
+    if (!text) return;
+    
+    setAudioLoading(true);
+    
+    try {
+      // Save any existing sound resources
+      if (sound) {
+        await sound.unloadAsync();
+      }
       
+      // Call OpenAI TTS API
+      const mp3 = await client.audio.speech.create({
+        model: "tts-1",
+        voice: selectedVoice,
+        input: text,
+      });
+      
+      // Convert the response to a blob
+      const audioData: ArrayBuffer = await mp3.arrayBuffer();
+      
+      // Create a temporary file path
+      const fileUri: string = FileSystem.cacheDirectory + "temp_audio.mp3";
+      
+      // Write the audio data to a file
+      await FileSystem.writeAsStringAsync(
+        fileUri,
+        arrayBufferToBase64(audioData),
+        { encoding: FileSystem.EncodingType.Base64 }
+      );
+      
+      // Load and play the audio
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: fileUri },
+        { shouldPlay: true }
+      );
+      
+      setSound(newSound);
+      setIsPlaying(true);
+      
+      newSound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsPlaying(false);
+        }
+      });
+      
+    } catch (error: unknown) {
+      console.error("Error generating audio:", error);
+      Alert.alert("Audio Error", "Could not generate audio from text.");
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+  
+  // Convert ArrayBuffer to Base64
+  const arrayBufferToBase64 = (buffer: any) => {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
+
+  // Handle Play/Pause Audio
+  const togglePlayPause = async () => {
+    if (!sound) return;
+    
+    if (isPlaying) {
+      await sound.pauseAsync();
+      setIsPlaying(false);
+    } else {
+      await sound.playAsync();
+      setIsPlaying(true);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={[globalStyles.container, styles.container]}>
-      <Text style={[globalStyles.text, styles.headerText]}>Ask AI Anything</Text>
+      <ScrollView contentContainerStyle={[globalStyles.container, styles.container]}>
+        <Text style={[globalStyles.text, styles.headerText]}>Ask AI Anything</Text>
 
-      <TextInput
-        style={styles.ask}
-        placeholder="Type your question here..."
-        value={ask}
-        onChangeText={setAsk}
-        multiline
-      />
+        <VoiceThemeSelector 
+          selectedVoice={selectedVoice} 
+          onVoiceSelected={setSelectedVoice} 
+        />
 
-      <TouchableOpacity style={styles.button} onPress={handleAsk}>
-        <Text style={styles.buttonText}>Submit</Text>
-      </TouchableOpacity>
+        <TextInput
+          style={styles.ask}
+          placeholder="Type your question here..."
+          value={ask}
+          onChangeText={setAsk}
+          multiline
+        />
 
-      {response !== '' && (
-        <View style={styles.responseBox}>
-          <Text style={styles.responseText}>{response}</Text>
-        </View>
-      )}
-    </ScrollView>
+        <TouchableOpacity style={styles.button} onPress={runUserAnalysis}>
+          <Text style={styles.buttonText}>Submit</Text>
+        </TouchableOpacity>
+
+        {/* Audio Loading Indicator */}
+        {audioLoading && (
+          <View style={styles.audioLoadingContainer}>
+            <ActivityIndicator size="small" color="#841584" />
+            <Text style={styles.audioLoadingText}>Generating audio...</Text>
+          </View>
+        )}
+
+        {finalAnalysis !== '' && (
+          <View style={styles.responseBox}>
+            <Text style={styles.responseText}>{finalAnalysis}</Text>
+          </View>
+        )}
+      </ScrollView>
   );
 }
 
@@ -306,6 +429,39 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     textAlign: 'center',
+  },
+  audioLoadingContainer: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioLoadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: 'gray',
+  },
+  audioControlsContainer: {
+    marginTop: 15,
+    marginBottom: 15,
+    alignItems: 'center',
+    width: '100%',
+  },
+  audioButton: {
+    backgroundColor: '#018786',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '60%',
+  },
+  audioButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 8,
   },
   ask: {
     width: '100%',
