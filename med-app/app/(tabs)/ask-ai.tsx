@@ -20,6 +20,7 @@ import { OPENAI_API_KEY } from '@env';
 import * as Types from '../../interface/interface';
 import * as db from '../../database/database';
 import { globalStyles } from '../../styles/globalStyles';
+import CheckBox from 'react-native-elements/dist/checkbox/CheckBox'; // Add this import
 
 // check for api key
 if (!OPENAI_API_KEY) {
@@ -76,6 +77,11 @@ export default function AskAI() {
   const [sound, setSound] = useState<Audio.Sound | undefined>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<{ [key: string]: boolean }>({
+    option1: false,
+    option2: false,
+    option3: false,
+  });
   // user info
   const [baseMeds, setBaseMeds] = useState<Types.MedicineWithDescription[]>([]);
   const [medsTaken, setMedsTaken] = useState<string>('');
@@ -344,9 +350,51 @@ export default function AskAI() {
     }
   };
 
+  const toggleCheckbox = (option: string, title: string) => {
+    setSelectedOptions((prev) => {
+      const updatedOptions = {
+        ...prev,
+        [option]: !prev[option],
+      };
+
+      // Update the ask state based on the checkbox selection
+      if (updatedOptions[option]) {
+        setAsk((prevAsk) => (prevAsk ? `${prevAsk}\n${title}` : title));
+      } else {
+        setAsk((prevAsk) =>
+          prevAsk
+            .split('\n')
+            .filter((line) => line !== title)
+            .join('\n')
+        );
+      }
+
+      return updatedOptions;
+    });
+  };
+
   return (
       <ScrollView contentContainerStyle={[globalStyles.container, styles.container]}>
         <Text style={[globalStyles.text, styles.headerText]}>Ask AI Anything</Text>
+
+        {/* Checkboxes */}
+        <View style={styles.checkboxContainer}>
+          <CheckBox
+            title="What medicines do I need to take today?"
+            checked={selectedOptions.option1}
+            onPress={() => toggleCheckbox('option1', 'What medicines do I need to take today?')}
+          />
+          <CheckBox
+            title="What medicines have I already taken?"
+            checked={selectedOptions.option2}
+            onPress={() => toggleCheckbox('option2', 'What medicines have I already taken?')}
+          />
+          <CheckBox
+            title="What medicines are overdue?"
+            checked={selectedOptions.option3}
+            onPress={() => toggleCheckbox('option3', 'What medicines are overdue?')}
+          />
+        </View>
 
         <VoiceThemeSelector 
           selectedVoice={selectedVoice} 
@@ -515,5 +563,9 @@ const styles = StyleSheet.create({
   responseText: {
     fontSize: 16,
     color: '#333',
+  },
+  checkboxContainer: {
+    width: '100%',
+    marginBottom: 20,
   },
 });
