@@ -48,7 +48,7 @@ const VoiceThemeSelector: React.FC<Types.VoiceThemeSelectorProps> = ({ selectedV
   return (
     <View style={styles.voiceThemeContainer}>
       <Text style={styles.voiceThemeTitle}>Select Voice Theme</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.voiceThemeScroll}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.voiceThemeScroll}>
         {Object.entries(voiceThemes).map(([voice, theme]) => (
           <TouchableOpacity
             key={voice}
@@ -82,23 +82,27 @@ export default function AskAI() {
     option2: false,
     option3: false,
   });
+  const [isOption1Selected, setIsOption1Selected] = useState(false); //CHANGED
+  const [isOption2Selected, setIsOption2Selected] = useState(false);
+  const [isOption3Selected, setIsOption3Selected] = useState(false);
   // user info
   const [baseMeds, setBaseMeds] = useState<Types.MedicineWithDescription[]>([]);
   const [medsTaken, setMedsTaken] = useState<string>('');
   const [medsNotTaken, setMedsNotTaken] = useState<string>('');
+  const [medsOverdue, setMedsOverdue] = useState<string>('');
   const [overdueMeds, setOverdueMeds] = useState<Types.OverdueMedicine[]>([]);
   const [refreshKey, setRefreshKey] = useState(0); // FIXME: i do not know what this does
   useEffect(() => {
       // Fetch products when the component mounts
       db.fetchAllMedAndDesc().then((data) => {
         setBaseMeds(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
-        //console.log('Fetched medicine and description:', data);
+        // console.log('Fetched medicine and description:', data);
       }).catch((error) => {
-        console.error('Error fetching medicine and description:', error);
+        // console.error('Error fetching medicine and description:', error);
       });
       db.getOverdueMedicines().then((data) => {
         setOverdueMeds(data ?? []);  // Set the fetched data into the state, fallback to an empty array if null
-        //console.log('Fetched medicine and description:', data);
+        // console.log('Fetched overdue medicine:', data);
       }).catch((error) => {
         console.error('Error fetching medicine and description:', error);
       });
@@ -132,14 +136,46 @@ export default function AskAI() {
     return JSON.stringify(response);
   };
 
+  // stringify baseMeds for system prompt
+  const baseMedsString = baseMeds.map((med) => `
+  \n${(med.MedID) ? `${med.MedID}. ` : ''}${med.MedName}:
+  \n- Dosage: ${med.DosageQuantity} ${med.DosageMeasurment}
+  \n- Frequency: ${med.FrequencyHours} hours
+  \n-Last Taken: ${med.LastTaken}
+  \n- Description: ${med.SpecialDescription}
+  \n- Side Effects: ${med.SideEffects}
+  \n- Interations: ${med.Interactions}
+  \n- Required?: ${(med.UsageRequired) ? 'Yes' : 'No'}
+  `).join('\n');
+
+  // meds required string
+  const medsRequiredString = baseMeds.map((med) => (med.UsageRequired && med.LastTaken) ? `
+  \n${med.MedName}:
+  \n- Frequency: ${med.FrequencyHours} hours
+  \n-Last Taken: ${med.LastTaken}
+  `: '').join('\n');
+
+
+
+  // overdue meds string
+  const overdueMedsString = overdueMeds.map((med) => `
+  \n${med.MedName}:
+  \n- Frequency: ${med.FrequencyHours} hours
+  \n-Last Taken: ${med.LastTaken}
+  `).join('\n');
+
+
+  // console.log("Base meds string:", baseMedsString);
+  // console.log("Base meds string:", overdueMedsString);
+
   // FIXME: add name for AI assistant
   const systemPrompt = `You are ___________, a medication manager for people who struggle to keep track of their daily medicine 
   intake (e.g., senior citizens). Your job is to provide advice and answer questions regarding the user's current medicine 
-  schedule: ${baseMeds}. You are also responsible for researching any drug interactions (e.g., among medications, between 
+  schedule: ${baseMedsString}. You are also responsible for researching any drug interactions (e.g., among medications, between 
   medications and food or drink) and answering any general health questions the user has. THIS WILL REQUIRE YOU TO USE THE 
   SEARCH FEATURE TO OBTAIN THE MOST RECENT AND ACCURATE MEDICAL DATA/ADVICE. Be clear and concise with your responses (i.e., 
   no unnecessary flourishes or redundant information) and answer using plaintext only (i.e., no markdown or any special 
-  characters used for formatting). After every query, kindly inform the user that you are not a licensed professional and, for 
+  characters used for formatting). After every query, kindly remind the user that you are not a licensed professional and, for 
   any questions you cannot sufficiently answer, offer suggestions for which the user can acquire more reputable advice (e.g., 
   for health organizations: websites, articles, academic journals, etc.).
   `;
@@ -174,17 +210,19 @@ export default function AskAI() {
 
   // FIXME: in progress; implement toggle for meds taken/not taken/overdue; fix medsTaken and medsNotTaken types
   const runUserAnalysis = async () => {
-    setMedsTaken(''); setMedsNotTaken(''); setOverdueMeds([]); setFinalAnalysis('');
+    setMedsTaken(''); setMedsNotTaken(''); setMedsOverdue(''); setFinalAnalysis('');
+    setLoading(true);
 
+    
     // include meds taken
-    if (medsTaken.length > 0 /* && someBooleanCheck */) {
+    if (isOption2Selected && medsRequiredString.length > 0) {
       setLoadingSection('medsTaken');
       try {
         const medsTakenResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${medsTaken}) and kindly 
-          advise the user not to take them again today.`
+          input: `Provide a list of medications the user has already taken after evaluating the list below and kindly 
+          advise the user to not take them again today: ${medsRequiredString}`
         }) as ResponseType; // type assertion
         console.log("Meds taken response:", medsTakenResponse);
         const medsTakenContent = extractContent(medsTakenResponse);
@@ -198,18 +236,18 @@ export default function AskAI() {
       console.log("No medications taken today.");
     }
     // include meds not taken
-    if (medsNotTaken.length > 0 /* && someBooleanCheck */) {
+    if (isOption1Selected && medsRequiredString.length > 0) {
       setLoadingSection('medsNotTaken');
       try {
         const medsNotTakenResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has not yet taken (i.e., ${medsNotTaken}) and kindly 
-          advise the user to take them today.`
+          input: `Provide a list of medications the user has not yet taken after evaluating the list below and kindly 
+          advise the user to take them today: ${medsRequiredString}`
         }) as ResponseType; // type assertion
         console.log("Meds not taken response:", medsNotTakenResponse);
         const medsNotTakenContent = extractContent(medsNotTakenResponse);
-        setMedsTaken(medsNotTakenContent);
+        setMedsNotTaken(medsNotTakenContent);
         console.log("Meds not taken content:", medsNotTakenContent);
       } catch (error) {
         console.error("Error generating medication advice:", error);
@@ -219,18 +257,18 @@ export default function AskAI() {
       console.log("All medications taken today.");
     }
     // include overdue meds
-    if (overdueMeds.length > 0 /* && someBooleanCheck */) {
+    if (isOption3Selected && overdueMedsString.length > 0) {
       setLoadingSection('medsOverdue');
       try {
         const medsOverdueResponse = await client.responses.create({
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search_preview' }],
-          input: `${systemPrompt}\n\nProvide a list of medications the user has already taken (i.e., ${overdueMeds}) and kindly 
+          input: `Provide a list of medications the user has already taken (i.e., ${overdueMedsString}) and kindly 
           advise the user to take them today while insisting upon the urgency of taking their medication on time.`
         }) as ResponseType; // type assertion
         console.log("Meds overdue response:", medsOverdueResponse);
         const medsOverdueContent = extractContent(medsOverdueResponse);
-        setMedsTaken(medsOverdueContent);
+        setMedsOverdue(medsOverdueContent);
         console.log("Meds overdue content:", medsOverdueContent);
       } catch (error) {
         console.error("Error generating medication advice:", error);
@@ -243,18 +281,15 @@ export default function AskAI() {
     setLoadingSection('finalAnalysis');
     try {
       const finalPrompt = `
-      ${systemPrompt}\n\nBased on the information provided, and the content of these (optional) arguments:
-      \n- Medications taken: ${medsTaken}
-      \n- Medications not taken: ${medsNotTaken}
-      \n- Medications overdue: ${overdueMeds}
-      \n\nPlease answer the user's query to the best of your ability.
-      \n\nUser query: ${ask}
+      ${systemPrompt}\n\nBased on the information provided, please answer the user's query to the best of your ability.
+      \nUser query: ${ask}
       `;
       const finalResponse = await client.responses.create({
         model: 'o4-mini',
         input: finalPrompt
       }) as ResponseType; // type assertion
-      const finalContent = extractContent(finalResponse);
+      const finalContent = extractContent(finalResponse) + `\n\n${medsTaken}\n\n${medsNotTaken}\n\n${medsOverdue}`;
+      console.log("Final analysis response:", finalContent);
       setFinalAnalysis(finalContent);
       
       if (finalAnalysis) {
@@ -266,6 +301,8 @@ export default function AskAI() {
     }
     
     setLoadingSection(null);
+    setLoading(false);
+    setAsk(''); // reset ask input
   }
 
   interface GenerateAudioProps {
@@ -273,7 +310,7 @@ export default function AskAI() {
   }
 
   const generateAudio = async (text: string): Promise<void> => {
-    if (!text) return;
+    if (!text) return (console.error("No text provided for audio generation."));
     
     setAudioLoading(true);
     
@@ -369,80 +406,93 @@ export default function AskAI() {
         );
       }
 
+      // Update the corresponding boolean state
+      if (option === 'option1') setIsOption1Selected(updatedOptions[option]); //CHANGED
+      if (option === 'option2') setIsOption2Selected(updatedOptions[option]);
+      if (option === 'option3') setIsOption3Selected(updatedOptions[option]);
+
       return updatedOptions;
     });
   };
 
   return (
-      <ScrollView contentContainerStyle={[globalStyles.container, styles.container]}>
-        <Text style={[globalStyles.text, styles.headerText]}>Ask AI Anything</Text>
+    <ScrollView contentContainerStyle={[globalStyles.container, styles.container]}>
+      <Text style={[globalStyles.text, styles.headerText]}>Ask AI Anything</Text>
 
-        {/* Checkboxes */}
-        <View style={styles.checkboxContainer}>
-          <CheckBox
-            title="What medicines do I need to take today?"
-            checked={selectedOptions.option1}
-            onPress={() => toggleCheckbox('option1', 'What medicines do I need to take today?')}
-          />
-          <CheckBox
-            title="What medicines have I already taken?"
-            checked={selectedOptions.option2}
-            onPress={() => toggleCheckbox('option2', 'What medicines have I already taken?')}
-          />
-          <CheckBox
-            title="What medicines are overdue?"
-            checked={selectedOptions.option3}
-            onPress={() => toggleCheckbox('option3', 'What medicines are overdue?')}
-          />
+      {/* Checkboxes */}
+      <View style={styles.checkboxContainer}>
+        <CheckBox
+          title="What medicines do I need to take today?"
+          checked={selectedOptions.option1}
+          onPress={() => toggleCheckbox('option1', 'What medicines do I need to take today?')}
+        />
+        <CheckBox
+          title="What medicines have I already taken?"
+          checked={selectedOptions.option2}
+          onPress={() => toggleCheckbox('option2', 'What medicines have I already taken?')}
+        />
+        <CheckBox
+          title="What medicines are overdue?"
+          checked={selectedOptions.option3}
+          onPress={() => toggleCheckbox('option3', 'What medicines are overdue?')}
+        />
+      </View>
+
+      <VoiceThemeSelector 
+        selectedVoice={selectedVoice} 
+        onVoiceSelected={setSelectedVoice} 
+      />
+
+      <TextInput
+        style={styles.ask}
+        placeholder="Type your question here..."
+        value={ask}
+        onChangeText={setAsk}
+        multiline
+      />
+
+      <TouchableOpacity style={styles.button} onPress={runUserAnalysis}>
+        <Text style={styles.buttonText}>Submit</Text>
+      </TouchableOpacity>
+
+      {/* Loading Indicator */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6c5ce7" />
+          <Text style={styles.loadingText}>Generating response...</Text>
         </View>
+      )}
 
-        <VoiceThemeSelector 
-          selectedVoice={selectedVoice} 
-          onVoiceSelected={setSelectedVoice} 
-        />
+      {/* Audio Loading Indicator */}
+      {audioLoading && (
+        <View style={styles.audioLoadingContainer}>
+          <ActivityIndicator size="small" color="#6c5ce7" />
+          <Text style={styles.audioLoadingText}>Generating audio...</Text>
+        </View>
+      )}
 
-        <TextInput
-          style={styles.ask}
-          placeholder="Type your question here..."
-          value={ask}
-          onChangeText={setAsk}
-          multiline
-        />
+      {/* Audio Controls */}
+      {finalAnalysis && sound && !audioLoading && (
+        <View style={styles.audioControlsContainer}>
+          <TouchableOpacity onPress={togglePlayPause} style={styles.audioButton}>
+            <MaterialIcons 
+              name={isPlaying ? "pause" : "play-arrow"} 
+              size={30} 
+              color="white" 
+            />
+            <Text style={styles.audioButtonText}>
+              {isPlaying ? "Pause" : "Play"} Audio
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-        <TouchableOpacity style={styles.button} onPress={runUserAnalysis}>
-          <Text style={styles.buttonText}>Submit</Text>
-        </TouchableOpacity>
-
-        {/* Audio Loading Indicator */}
-        {audioLoading && (
-          <View style={styles.audioLoadingContainer}>
-            <ActivityIndicator size="small" color="#841584" />
-            <Text style={styles.audioLoadingText}>Generating audio...</Text>
-          </View>
-        )}
-
-        {/* Audio Controls */}
-        {finalAnalysis && sound && !audioLoading && (
-          <View style={styles.audioControlsContainer}>
-            <TouchableOpacity onPress={togglePlayPause} style={styles.audioButton}>
-              <MaterialIcons 
-                name={isPlaying ? "pause" : "play-arrow"} 
-                size={30} 
-                color="white" 
-              />
-              <Text style={styles.audioButtonText}>
-                {isPlaying ? "Pause" : "Play"} Audio
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!loading && finalAnalysis !== '' && (
-          <View style={styles.responseBox}>
-            <Text style={styles.responseText}>{finalAnalysis}</Text>
-          </View>
-        )}
-      </ScrollView>
+      {!loading && finalAnalysis !== '' && (
+        <View style={styles.responseBox}>
+          <Text style={styles.responseText}>{finalAnalysis}</Text>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
@@ -457,6 +507,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   voiceThemeContainer: {
+    maxHeight: '40%',
     width: '100%',
     marginBottom: 20,
   },
@@ -472,7 +523,7 @@ const styles = StyleSheet.create({
   voiceThemeOption: {
     padding: 15,
     borderRadius: 10,
-    marginRight: 10,
+    marginBottom: 10,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 120,
@@ -497,6 +548,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: 'center',
   },
+  loadingContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: 'gray',
+  },
   audioLoadingContainer: {
     marginTop: 10,
     flexDirection: 'row',
@@ -515,7 +575,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   audioButton: {
-    backgroundColor: '#018786',
+    backgroundColor: '#6c5ce7',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
